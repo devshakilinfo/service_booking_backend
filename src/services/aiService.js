@@ -48,7 +48,7 @@ User Query: "${userMessage}"
 
 Respond helpfully in a polite, friendly tone. If the user asks for a recommendation or service, recommend the most suitable service from the catalog. Mention its price and duration. Keep your response concise (2-4 sentences).`;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
 
     const response = await fetch(url, {
       method: 'POST',
