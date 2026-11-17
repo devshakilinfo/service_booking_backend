@@ -1,0 +1,112 @@
+const bcrypt = require('bcryptjs');
+const db = require('../config/db');
+
+// @desc    Get current authenticated user profile
+// @route   GET /api/users/profile
+// @access  Private
+const getUserProfile = async (req, res, next) => {
+  try {
+    const result = await db.query(
+      'SELECT id, name, email, phone, avatar, role, created_at FROM users WHERE id = $1',
+      [req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    const user = result.rows[0];
+
+    res.json({
+      success: true,
+      data: {
+        id: user.id.toString(),
+        name: user.name,
+        email: user.email,
+        phone: user.phone || '',
+        avatar: user.avatar,
+        role: user.role,
+        createdAt: user.created_at,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Update user profile & password
+// @route   PUT /api/users/profile
+// @access  Private
+const updateUserProfile = async (req, res, next) => {
+  try {
+    const { name, phone, avatar, currentPassword, newPassword } = req.body;
+
+    const userResult = await db.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    const user = userResult.rows[0];
+    let updatedName = name || user.name;
+    let updatedPhone = phone !== undefined ? phone : user.phone;
+    let updatedAvatar = avatar || user.avatar;
+    let updatedPassword = user.password;
+
+    // Handle optional password change
+    if (newPassword) {
+      if (currentPassword) {
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) {
+          return res.status(400).json({
+            success: false,
+            message: 'Current password is incorrect',
+          });
+        }
+      }
+      if (newPassword.length < 6) {
+        return res.status(400).json({
+          success: false,
+          message: 'New password must be at least 6 characters',
+        });
+      }
+      const salt = await bcrypt.genSalt(10);
+      updatedPassword = await bcrypt.hash(newPassword, salt);
+    }
+
+    const updateRes = await db.query(
+      `UPDATE users 
+       SET name = $1, phone = $2, avatar = $3, password = $4, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $5
+       RETURNING id, name, email, phone, avatar, role`,
+      [updatedName, updatedPhone, updatedAvatar, updatedPassword, req.user.id]
+    );
+
+    const updatedUser = updateRes.rows[0];
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: {
+        id: updatedUser.id.toString(),
+        name: updatedUser.name,
+        email: updatedUser.email,
+        phone: updatedUser.phone,
+        avatar: updatedUser.avatar,
+        role: updatedUser.role,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = {
+  getUserProfile,
+  updateUserProfile,
+};
