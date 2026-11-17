@@ -15,7 +15,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Roksana Akter\",\n  \"email\": \"roksana@example.com\",\n  \"password\": \"password123\"\n}"
+              "raw": "{\n  \"name\": \"Shakil Ahamed\",\n  \"email\": \"shakil@example.com\",\n  \"password\": \"password123\"\n}"
             },
             "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
           }
@@ -27,7 +27,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"roksana@example.com\",\n  \"password\": \"password123\"\n}"
+              "raw": "{\n  \"email\": \"shakil@example.com\",\n  \"password\": \"password123\"\n}"
             },
             "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
           }

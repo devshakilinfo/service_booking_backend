@@ -36,8 +36,8 @@ Authorization: Bearer <your_jwt_token>
 * **Request Body:**
 ```json
 {
-  "name": "Roksana Akter",
-  "email": "roksana@example.com",
+  "name": "Shakil Ahamed",
+  "email": "shakil@example.com",
   "password": "password123"
 }
 ```
@@ -49,8 +49,8 @@ Authorization: Bearer <your_jwt_token>
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "user": {
     "id": 1,
-    "name": "Roksana Akter",
-    "email": "roksana@example.com",
+    "name": "Shakil Ahamed",
+    "email": "shakil@example.com",
     "phone": "",
     "avatar": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150",
     "role": "user"
@@ -64,7 +64,7 @@ Authorization: Bearer <your_jwt_token>
 * **Request Body:**
 ```json
 {
-  "email": "roksana@example.com",
+  "email": "shakil@example.com",
   "password": "password123"
 }
 ```
@@ -76,8 +76,8 @@ Authorization: Bearer <your_jwt_token>
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "user": {
     "id": 1,
-    "name": "Roksana Akter",
-    "email": "roksana@example.com",
+    "name": "Shakil Ahamed",
+    "email": "shakil@example.com",
     "phone": "+1 234 567 8900",
     "avatar": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150",
     "role": "user"

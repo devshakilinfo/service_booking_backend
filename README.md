@@ -66,7 +66,7 @@ Then run:
 npm run seed
 ```
 This automatically creates the `users`, `services`, and `bookings` tables, inserts all demo services, and creates the demo user account:
-- **Email:** `roksana@example.com`
+- **Email:** `shakil@example.com`
 - **Password:** `password123`
 
 ### 5. Start the Server

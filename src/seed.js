@@ -97,7 +97,7 @@ const seedDatabase = async () => {
     // 1. Clear existing seed data
     await query('DELETE FROM bookings');
     await query('DELETE FROM services');
-    await query('DELETE FROM users WHERE email = $1', ['roksana@example.com']);
+    await query('DELETE FROM users WHERE email = $1', ['shakil@example.com']);
     console.log('Cleared existing tables.');
 
     // 2. Insert sample services
@@ -126,22 +126,22 @@ const seedDatabase = async () => {
     }
     console.log(`Inserted ${sampleServices.length} services into PostgreSQL.`);
 
-    // 3. Create demo user matching UI screen 11 ("Roksana Akter")
+    // 3. Create demo user ("Shakil Ahamed")
     const hashedPassword = await bcrypt.hash('password123', 10);
     const userRes = await query(
       `INSERT INTO users (name, email, password, phone, avatar)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id`,
       [
-        'Roksana Akter',
-        'roksana@example.com',
+        'Shakil Ahamed',
+        'shakil@example.com',
         hashedPassword,
         '+1 234 567 8900',
-        'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+        'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
       ]
     );
     const userId = userRes.rows[0].id;
-    console.log('Demo user created: roksana@example.com / password123');
+    console.log('Demo user created: shakil@example.com / password123');
 
     // 4. Create sample bookings for user
     const tomorrow = new Date();
