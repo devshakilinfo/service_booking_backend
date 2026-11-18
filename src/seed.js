@@ -2,6 +2,39 @@ require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const { pool, query, initializeDatabase } = require('./config/db');
 
+const sampleCategories = [
+  {
+    name: 'Cleaning',
+    icon: 'cleaning_services',
+    description: 'Professional home, sofa, and sanitization services',
+  },
+  {
+    name: 'Repair',
+    icon: 'handyman',
+    description: 'Expert AC, plumbing, and home equipment repair',
+  },
+  {
+    name: 'Beauty',
+    icon: 'content_cut',
+    description: 'At-home parlour, salon, facial, and personal grooming',
+  },
+  {
+    name: 'Health',
+    icon: 'favorite',
+    description: 'Physiotherapy, elderly care, and nurse checkups',
+  },
+  {
+    name: 'Electric',
+    icon: 'bolt',
+    description: 'Certified electrical wiring, installation, and inspection',
+  },
+  {
+    name: 'Painting',
+    icon: 'format_paint',
+    description: 'Interior and exterior premium wall painting',
+  },
+];
+
 const sampleServices = [
   {
     name: 'Home Cleaning',
@@ -60,6 +93,34 @@ const sampleServices = [
     available_slots: ['09:00 AM', '10:00 AM', '11:00 AM', '02:00 PM', '03:00 PM', '04:00 PM'],
   },
   {
+    name: 'Home Physiotherapy & Care',
+    description: 'Licensed physiotherapist home visits for pain relief, posture therapy, rehabilitation, and elderly mobility training.',
+    category: 'Health',
+    price: 50.0,
+    duration: '1 hr',
+    image: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800',
+    rating: 4.9,
+    reviews_count: 640,
+    is_featured: true,
+    is_popular: true,
+    highlights: ['Certified Physiotherapist', 'Custom Exercise Plan', 'In-Home Care'],
+    available_slots: ['09:00 AM', '10:00 AM', '11:00 AM', '02:00 PM', '03:00 PM', '04:00 PM'],
+  },
+  {
+    name: 'Deep Sofa & Carpet Cleaning',
+    description: 'Intensive upholstery steam extraction, anti-bacterial sanitization, and deep stain removal for carpets, couches, and rugs.',
+    category: 'Cleaning',
+    price: 35.0,
+    duration: '2 hrs',
+    image: 'https://images.unsplash.com/photo-1558317374-067fb5f30001?w=800',
+    rating: 4.7,
+    reviews_count: 850,
+    is_featured: false,
+    is_popular: false,
+    highlights: ['Deep Steam Extraction', 'Zero Residue', 'Fabric Protection'],
+    available_slots: ['09:00 AM', '11:00 AM', '02:00 PM', '04:00 PM'],
+  },
+  {
     name: 'Electrical Maintenance',
     description: 'Safe and certified electrical solutions including short circuit fixes, wiring inspections, switchboard upgrades, and light fixtures.',
     category: 'Electric',
@@ -97,10 +158,22 @@ const seedDatabase = async () => {
     // 1. Clear existing seed data
     await query('DELETE FROM bookings');
     await query('DELETE FROM services');
-    await query('DELETE FROM users WHERE email = $1', ['shakil@example.com']);
-    console.log('Cleared existing tables.');
+    await query('DELETE FROM categories');
+    await query('DELETE FROM users WHERE email IN ($1, $2)', ['shakil@example.com', 'admin@servicehub.com']);
+    console.log('Cleared existing database tables.');
 
-    // 2. Insert sample services
+    // 2. Insert Categories
+    for (const c of sampleCategories) {
+      await query(
+        `INSERT INTO categories (name, icon, description)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (name) DO UPDATE SET icon = EXCLUDED.icon, description = EXCLUDED.description`,
+        [c.name, c.icon, c.description]
+      );
+    }
+    console.log(`Inserted ${sampleCategories.length} categories.`);
+
+    // 3. Insert Services
     const serviceIds = [];
     for (const s of sampleServices) {
       const res = await query(
@@ -124,39 +197,112 @@ const seedDatabase = async () => {
       );
       serviceIds.push(res.rows[0].id);
     }
-    console.log(`Inserted ${sampleServices.length} services into PostgreSQL.`);
+    console.log(`Inserted ${sampleServices.length} services across categories.`);
 
-    // 3. Create demo user ("Shakil Ahamed")
-    const hashedPassword = await bcrypt.hash('password123', 10);
+    // 4. Create Demo Regular User ("Shakil Ahamed")
+    const userPassword = await bcrypt.hash('password123', 10);
     const userRes = await query(
-      `INSERT INTO users (name, email, password, phone, avatar)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO users (name, email, password, phone, avatar, role)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id`,
       [
         'Shakil Ahamed',
         'shakil@example.com',
-        hashedPassword,
-        '+1 234 567 8900',
+        userPassword,
+        '+880 1700 123456',
         'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+        'user',
       ]
     );
     const userId = userRes.rows[0].id;
-    console.log('Demo user created: shakil@example.com / password123');
+    console.log('Demo user created: shakil@example.com / password123 (role: user)');
 
-    // 4. Create sample bookings for user
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
-
+    // 5. Create Demo Admin User
+    const adminPassword = await bcrypt.hash('admin123', 10);
     await query(
-      `INSERT INTO bookings (user_id, service_id, date, time_slot, status, total_price, notes)
-       VALUES 
-       ($1, $2, $3, '10:00 AM', 'Confirmed', 25.00, 'Please bring eco-friendly solutions'),
-       ($1, $4, $3, '02:00 PM', 'Pending', 40.00, 'Master bedroom AC repair'),
-       ($1, $5, '2026-11-10', '11:00 AM', 'Completed', 30.00, 'Kitchen sink pipe repair')`,
-      [userId, serviceIds[0], tomorrowStr, serviceIds[1], serviceIds[2]]
+      `INSERT INTO users (name, email, password, phone, avatar, role)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        'Admin Manager',
+        'admin@servicehub.com',
+        adminPassword,
+        '+880 1900 654321',
+        'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150',
+        'admin',
+      ]
     );
-    console.log('Sample bookings created in PostgreSQL.');
+    console.log('Demo admin created: admin@servicehub.com / admin123 (role: admin)');
+
+    // 6. Create Demo Orders / Bookings (Upcoming, Past, Confirmed, Pending, Completed, Cancelled)
+    const bookingsData = [
+      {
+        serviceIndex: 0, // Home Cleaning
+        date: '2026-11-19',
+        timeSlot: '10:00 AM',
+        status: 'Confirmed',
+        price: 25.00,
+        notes: 'Please bring eco-friendly cleaning detergents',
+      },
+      {
+        serviceIndex: 1, // AC Repair
+        date: '2026-11-21',
+        timeSlot: '02:00 PM',
+        status: 'Pending',
+        price: 40.00,
+        notes: 'Master bedroom AC cooling check and filter replacement',
+      },
+      {
+        serviceIndex: 2, // Plumbing Service
+        date: '2026-11-24',
+        timeSlot: '11:00 AM',
+        status: 'Completed',
+        price: 30.00,
+        notes: 'Kitchen sink pipe repair',
+      },
+      {
+        serviceIndex: 3, // Beauty Parlour
+        date: '2026-11-15',
+        timeSlot: '04:00 PM',
+        status: 'Completed',
+        price: 35.00,
+        notes: 'Rejuvenating facial & hair styling',
+      },
+      {
+        serviceIndex: 4, // Home Physiotherapy
+        date: '2026-11-28',
+        timeSlot: '09:00 AM',
+        status: 'Pending',
+        price: 50.00,
+        notes: 'Lower back mobility therapy session',
+      },
+      {
+        serviceIndex: 6, // Electrical Maintenance
+        date: '2026-11-08',
+        timeSlot: '03:00 PM',
+        status: 'Cancelled',
+        price: 35.00,
+        notes: 'Living room light fixture setup',
+        cancellationReason: 'Rescheduled by customer',
+      },
+    ];
+
+    for (const b of bookingsData) {
+      await query(
+        `INSERT INTO bookings (user_id, service_id, date, time_slot, status, total_price, notes, cancellation_reason)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [
+          userId,
+          serviceIds[b.serviceIndex],
+          b.date,
+          b.timeSlot,
+          b.status,
+          b.price,
+          b.notes || '',
+          b.cancellationReason || '',
+        ]
+      );
+    }
+    console.log(`Inserted ${bookingsData.length} demo bookings/orders matching mockup statuses.`);
 
     console.log('\n PostgreSQL Database Seeding Completed Successfully!');
     process.exit(0);

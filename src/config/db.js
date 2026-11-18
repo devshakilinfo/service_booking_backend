@@ -33,7 +33,19 @@ const initializeDatabase = async () => {
       );
     `);
 
-    // 2. Services Table
+    // 2. Categories Table
+    await query(`
+      CREATE TABLE IF NOT EXISTS categories (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) UNIQUE NOT NULL,
+        icon VARCHAR(100) DEFAULT '',
+        description TEXT DEFAULT '',
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // 3. Services Table
     await query(`
       CREATE TABLE IF NOT EXISTS services (
         id SERIAL PRIMARY KEY,
@@ -54,7 +66,7 @@ const initializeDatabase = async () => {
       );
     `);
 
-    // 3. Bookings Table
+    // 4. Bookings Table
     await query(`
       CREATE TABLE IF NOT EXISTS bookings (
         id SERIAL PRIMARY KEY,

@@ -158,8 +158,27 @@ const getServiceAvailability = async (req, res, next) => {
   }
 };
 
+// @desc    Get all categories
+// @route   GET /api/services/categories
+// @access  Public
+const getCategories = async (req, res, next) => {
+  try {
+    const result = await db.query(
+      'SELECT id, name, icon, description FROM categories WHERE is_active = TRUE ORDER BY id ASC'
+    );
+    res.json({
+      success: true,
+      count: result.rows.length,
+      data: result.rows,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getServices,
   getServiceById,
   getServiceAvailability,
+  getCategories,
 };
