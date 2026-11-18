@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { DATE_REGEX } = require('../utils/validation');
 
 const getServices = async (req, res, next) => {
   try {
@@ -63,6 +64,12 @@ const getServices = async (req, res, next) => {
 const getServiceById = async (req, res, next) => {
   try {
     const { id } = req.params;
+    if (!/^\d+$/.test(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid service id',
+      });
+    }
     const result = await db.query('SELECT * FROM services WHERE id = $1', [id]);
 
     if (result.rows.length === 0) {
@@ -105,10 +112,17 @@ const getServiceAvailability = async (req, res, next) => {
     const { id } = req.params;
     const { date } = req.query;
 
-    if (!date) {
+    if (!date || !DATE_REGEX.test(date)) {
       return res.status(400).json({
         success: false,
         message: 'Date query parameter is required (format: YYYY-MM-DD)',
+      });
+    }
+
+    if (!/^\d+$/.test(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid service id',
       });
     }
 

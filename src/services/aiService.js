@@ -1,9 +1,67 @@
 const db = require('../config/db');
 
+const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
+const DEFAULT_GEMINI_MODEL = 'gemini-3.8-flash';
+const GEMINI_TIMEOUT_MS = 15000;
+const MAX_RECOMMENDATIONS = 2;
+
+const KEYWORD_RULES = [
+  {
+    pattern: /\b(clean|cleaning|house|maid|dust|sofa|carpet)\b/,
+    match: (s) => s.category === 'Cleaning',
+    reply: 'For cleaning, these are our best-rated options. Professionals bring eco-friendly supplies.',
+  },
+  {
+    pattern: /\b(ac|a\/c|air ?condition(er|ing)?|cooling)\b/,
+    match: (s) => /\bac\b|air/i.test(s.name),
+    reply: 'For air conditioning problems, a certified technician can inspect refrigerant, coils and fans.',
+  },
+  {
+    pattern: /\b(pipe|plumb|plumbing|plumber|leak|leaking|tap|faucet|drain)\b/,
+    match: (s) => /plumb/i.test(s.name),
+    reply: 'For leaks or drainage problems, our plumbing service provides a quick diagnosis and fix.',
+  },
+  {
+    pattern: /\b(beauty|hair|facial|salon|spa|makeup|parlour|parlor)\b/,
+    match: (s) => s.category === 'Beauty',
+    reply: 'Here are our at-home beauty services with certified stylists.',
+  },
+  {
+    pattern: /\b(health|physio|nurse|nursing|elderly|therapy)\b/,
+    match: (s) => s.category === 'Health',
+    reply: 'Here are our at-home health and care services.',
+  },
+  {
+    pattern: /\b(electric|electrical|wiring|switch|light|cctv|smart)\b/,
+    match: (s) => s.category === 'Electric',
+    reply: 'Here are our certified electrical and smart-home services.',
+  },
+  {
+    pattern: /\b(paint|painting|wall)\b/,
+    match: (s) => s.category === 'Painting',
+    reply: 'Here are our painting services.',
+  },
+];
+
 class AIService {
-  async processQuery(userMessage, conversationHistory = []) {
-    const servicesRes = await db.query('SELECT * FROM services WHERE is_active = TRUE');
-    const services = servicesRes.rows.map((row) => ({
+  async processQuery(userMessage) {
+    const services = await this._loadServices();
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    if (apiKey && apiKey !== 'your_gemini_api_key_here') {
+      try {
+        return await this._callGeminiAPI(userMessage, services, apiKey);
+      } catch (err) {
+        console.warn('Gemini API call failed, using keyword fallback:', err.message);
+      }
+    }
+
+    return this._generateFallbackResponse(userMessage, services);
+  }
+
+  async _loadServices() {
+    const result = await db.query('SELECT * FROM services WHERE is_active = TRUE ORDER BY rating DESC');
+    return result.rows.map((row) => ({
       _id: row.id.toString(),
       id: row.id.toString(),
       name: row.name,
@@ -13,137 +71,129 @@ class AIService {
       duration: row.duration,
       image: row.image,
       rating: parseFloat(row.rating),
+      reviewsCount: row.reviews_count,
       highlights: row.highlights || [],
     }));
-
-    const userText = (userMessage || '').toLowerCase().trim();
-
-    if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your_gemini_api_key_here') {
-      try {
-        const geminiRes = await this._callGeminiAPI(userMessage, services);
-        if (geminiRes) return geminiRes;
-      } catch (err) {
-        console.warn('Gemini API call failed, falling back to local engine:', err.message);
-      }
-    }
-
-    return this._generateLocalResponse(userText, services);
   }
 
-  async _callGeminiAPI(userMessage, services) {
-    const serviceContext = services
+  async _callGeminiAPI(userMessage, services, apiKey) {
+    const model = process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
+
+    const catalog = services
       .map(
         (s) =>
-          `- ID: ${s.id}, Name: ${s.name}, Category: ${s.category}, Price: $${s.price}, Duration: ${s.duration}, Rating: ${s.rating}`
+          `- id: ${s.id} | ${s.name} | category: ${s.category} | price: $${s.price} | duration: ${s.duration} | rating: ${s.rating} | ${s.description}`
       )
       .join('\n');
 
-    const prompt = `You are ServiceBot, an AI assistant for ServiceHub home services booking app.
-Here is the available services catalog from PostgreSQL database:
-${serviceContext}
+    const prompt = `You are the AI assistant of ServiceHub, a home services booking app.
+Only answer questions related to ServiceHub services, pricing, durations and booking.
+If the question is unrelated, politely say you can only help with ServiceHub services.
+Only recommend services from this catalog and never invent services or prices:
+${catalog}
 
-User Query: "${userMessage}"
+Respond with JSON of the form {"reply": string, "recommendedServiceIds": string[]}.
+"reply" must be 2-4 friendly sentences. "recommendedServiceIds" holds at most ${MAX_RECOMMENDATIONS} ids from the catalog, or is empty when no recommendation fits.
 
-Respond helpfully in a polite, friendly tone. If the user asks for a recommendation or service, recommend the most suitable service from the catalog. Mention its price and duration. Keep your response concise (2-4 sentences).`;
+User question: ${JSON.stringify(userMessage)}`;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: 250, temperature: 0.7 },
-      }),
-    });
+    let response;
+    try {
+      response = await fetch(`${GEMINI_BASE_URL}/${model}:generateContent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
+        },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.4,
+            maxOutputTokens: 400,
+            responseMimeType: 'application/json',
+          },
+        }),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
 
-    if (!response.ok) throw new Error(`Gemini error: ${response.statusText}`);
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`Gemini HTTP ${response.status}: ${body.slice(0, 200)}`);
+    }
 
     const data = await response.json();
-    const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!rawText) {
+      throw new Error('Gemini returned an empty response');
+    }
 
-    const matchedServices = services.filter(
-      (s) =>
-        replyText.toLowerCase().includes(s.name.toLowerCase()) ||
-        userMessage.toLowerCase().includes(s.category.toLowerCase())
-    );
+    const { reply, ids } = this._parseGeminiJson(rawText);
+    const byId = new Map(services.map((s) => [s.id, s]));
+    let recommended = ids.map((id) => byId.get(String(id))).filter(Boolean);
 
-    return {
-      reply: replyText,
-      recommendedServices: matchedServices.slice(0, 2),
-      source: 'gemini-1.5-flash',
-    };
-  }
-
-  _generateLocalResponse(userText, services) {
-    let matchedServices = [];
-    let reply = '';
-
-    if (
-      userText.includes('clean') ||
-      userText.includes('house') ||
-      userText.includes('maid') ||
-      userText.includes('dust')
-    ) {
-      matchedServices = services.filter(
-        (s) => s.category === 'Cleaning' || s.name.toLowerCase().includes('clean')
-      );
-      reply =
-        'For home cleaning, I recommend our Premium Home Cleaning service. It is highly rated (4.8★) and includes deep cleaning by experienced, eco-friendly professionals.';
-    } else if (
-      userText.includes('ac') ||
-      userText.includes('air condition') ||
-      userText.includes('cooling')
-    ) {
-      matchedServices = services.filter(
-        (s) => s.name.toLowerCase().includes('ac') || s.category === 'Repair'
-      );
-      reply =
-        'For air conditioning issues, our Expert AC Repair & Servicing is ideal. Our certified technicians inspect refrigerant, clean coils, and restore full cooling in 1–2 hours.';
-    } else if (
-      userText.includes('pipe') ||
-      userText.includes('plumb') ||
-      userText.includes('leak') ||
-      userText.includes('water')
-    ) {
-      matchedServices = services.filter(
-        (s) => s.name.toLowerCase().includes('plumb') || s.category === 'Repair'
-      );
-      reply =
-        'For plumbing leaks or drainage problems, our Quick Plumbing Solution ($30) provides rapid diagnostic and fix with 100% satisfaction guarantee.';
-    } else if (
-      userText.includes('beauty') ||
-      userText.includes('hair') ||
-      userText.includes('facial') ||
-      userText.includes('salon')
-    ) {
-      matchedServices = services.filter(
-        (s) => s.category === 'Beauty' || s.name.toLowerCase().includes('beauty')
-      );
-      reply =
-        'Treat yourself with our Beauty Parlour & Grooming service! We bring certified stylists to your home with top-tier beauty products.';
-    } else if (
-      userText.includes('cheap') ||
-      userText.includes('budget') ||
-      userText.includes('affordable') ||
-      userText.includes('price')
-    ) {
-      matchedServices = [...services].sort((a, b) => a.price - b.price).slice(0, 2);
-      reply = `Our most affordable service is ${matchedServices[0]?.name} starting at only $${matchedServices[0]?.price}. Here are the best budget-friendly options!`;
-    } else if (userText.includes('hello') || userText.includes('hi') || userText.includes('hey')) {
-      matchedServices = services.slice(0, 2);
-      reply =
-        'Hello! I am your ServiceHub AI Assistant. I can help you choose the right home service, check prices, or schedule an appointment. What service are you looking for today?';
-    } else {
-      matchedServices = services.slice(0, 1);
-      reply =
-        'We provide certified professionals for home cleaning, AC repair, plumbing, and beauty services. Let me know what you need help with, and I will recommend the best match!';
+    if (recommended.length === 0) {
+      const lowerReply = reply.toLowerCase();
+      recommended = services.filter((s) => lowerReply.includes(s.name.toLowerCase()));
     }
 
     return {
       reply,
-      recommendedServices: matchedServices.slice(0, 2),
-      source: 'servicehub-assistant-engine',
+      recommendedServices: recommended.slice(0, MAX_RECOMMENDATIONS),
+      source: model,
+    };
+  }
+
+  _parseGeminiJson(rawText) {
+    try {
+      const cleaned = rawText.replace(/^```(?:json)?\s*|\s*```$/g, '');
+      const parsed = JSON.parse(cleaned);
+      return {
+        reply: String(parsed.reply || '').trim() || rawText,
+        ids: Array.isArray(parsed.recommendedServiceIds) ? parsed.recommendedServiceIds : [],
+      };
+    } catch (_) {
+      return { reply: rawText.trim(), ids: [] };
+    }
+  }
+
+  _generateFallbackResponse(userMessage, services) {
+    const text = String(userMessage || '').toLowerCase();
+
+    if (/\b(cheap|cheapest|budget|affordable|price|cost)\b/.test(text)) {
+      const cheapest = [...services].sort((a, b) => a.price - b.price).slice(0, MAX_RECOMMENDATIONS);
+      return {
+        reply: cheapest.length
+          ? `Our most affordable option is ${cheapest[0].name} at $${cheapest[0].price}.`
+          : 'No services are available right now.',
+        recommendedServices: cheapest,
+        source: 'fallback-keyword-engine',
+      };
+    }
+
+    for (const rule of KEYWORD_RULES) {
+      if (rule.pattern.test(text)) {
+        const matched = services.filter(rule.match);
+        if (matched.length > 0) {
+          return {
+            reply: rule.reply,
+            recommendedServices: matched.slice(0, MAX_RECOMMENDATIONS),
+            source: 'fallback-keyword-engine',
+          };
+        }
+      }
+    }
+
+    return {
+      reply:
+        'I can help with cleaning, repairs, beauty, health, electrical and painting services. Tell me what you need and I will suggest a match.',
+      recommendedServices: [],
+      source: 'fallback-keyword-engine',
     };
   }
 }

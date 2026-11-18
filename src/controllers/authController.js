@@ -1,15 +1,15 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const db = require('../config/db');
+const { getJwtSecret } = require('../config/jwt');
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MIN_PASSWORD_LENGTH = 6;
 
 const generateToken = (id) => {
-  return jwt.sign(
-    { id },
-    process.env.JWT_SECRET || 'servicehub_jwt_super_secret_key_2026',
-    {
-      expiresIn: process.env.JWT_EXPIRE || '30d',
-    }
-  );
+  return jwt.sign({ id }, getJwtSecret(), {
+    expiresIn: process.env.JWT_EXPIRE || '30d',
+  });
 };
 
 const registerUser = async (req, res, next) => {
@@ -23,7 +23,28 @@ const registerUser = async (req, res, next) => {
       });
     }
 
-    const cleanEmail = email.toLowerCase().trim();
+    if (typeof name !== 'string' || name.trim().length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name must be at least 2 characters',
+      });
+    }
+
+    const cleanEmail = String(email).toLowerCase().trim();
+
+    if (!EMAIL_REGEX.test(cleanEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid email address',
+      });
+    }
+
+    if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH) {
+      return res.status(400).json({
+        success: false,
+        message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+      });
+    }
 
     const existing = await db.query('SELECT id FROM users WHERE email = $1', [cleanEmail]);
     if (existing.rows.length > 0) {
@@ -68,7 +89,7 @@ const loginUser = async (req, res, next) => {
       });
     }
 
-    const cleanEmail = email.toLowerCase().trim();
+    const cleanEmail = String(email).toLowerCase().trim();
 
     const result = await db.query(
       'SELECT id, name, email, password, phone, address, avatar, role FROM users WHERE email = $1',
@@ -84,7 +105,7 @@ const loginUser = async (req, res, next) => {
 
     const user = result.rows[0];
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = await bcrypt.compare(String(password), user.password);
     if (!isMatch) {
       return res.status(401).json({
         success: false,

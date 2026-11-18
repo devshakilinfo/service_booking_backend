@@ -55,16 +55,20 @@ const updateUserProfile = async (req, res, next) => {
     let updatedPassword = user.password;
 
     if (newPassword) {
-      if (currentPassword) {
-        const isMatch = await bcrypt.compare(currentPassword, user.password);
-        if (!isMatch) {
-          return res.status(400).json({
-            success: false,
-            message: 'Current password is incorrect',
-          });
-        }
+      if (!currentPassword) {
+        return res.status(400).json({
+          success: false,
+          message: 'Current password is required to set a new password',
+        });
       }
-      if (newPassword.length < 6) {
+      const isMatch = await bcrypt.compare(String(currentPassword), user.password);
+      if (!isMatch) {
+        return res.status(400).json({
+          success: false,
+          message: 'Current password is incorrect',
+        });
+      }
+      if (String(newPassword).length < 6) {
         return res.status(400).json({
           success: false,
           message: 'New password must be at least 6 characters',

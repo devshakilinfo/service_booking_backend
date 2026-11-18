@@ -1,47 +1,40 @@
 const jwt = require('jsonwebtoken');
 const db = require('../config/db');
+const { getJwtSecret } = require('../config/jwt');
 
 const protect = async (req, res, next) => {
-  let token;
+  const header = req.headers.authorization;
 
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith('Bearer')
-  ) {
-    try {
-      token = req.headers.authorization.split(' ')[1];
-      const decoded = jwt.verify(
-        token,
-        process.env.JWT_SECRET || 'servicehub_jwt_super_secret_key_2026'
-      );
-
-      const result = await db.query(
-        'SELECT id, name, email, phone, avatar, role FROM users WHERE id = $1',
-        [decoded.id]
-      );
-
-      if (result.rows.length === 0) {
-        return res.status(401).json({
-          success: false,
-          message: 'User no longer exists',
-        });
-      }
-
-      req.user = result.rows[0];
-      next();
-    } catch (error) {
-      console.error('JWT Verification Error:', error.message);
-      return res.status(401).json({
-        success: false,
-        message: 'Not authorized, token failed or expired',
-      });
-    }
-  }
-
-  if (!token) {
+  if (!header || !header.startsWith('Bearer ')) {
     return res.status(401).json({
       success: false,
       message: 'Not authorized, no token provided',
+    });
+  }
+
+  try {
+    const token = header.split(' ')[1];
+    const decoded = jwt.verify(token, getJwtSecret());
+
+    const result = await db.query(
+      'SELECT id, name, email, phone, avatar, role FROM users WHERE id = $1',
+      [decoded.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({
+        success: false,
+        message: 'User no longer exists',
+      });
+    }
+
+    req.user = result.rows[0];
+    next();
+  } catch (error) {
+    console.error('JWT Verification Error:', error.message);
+    return res.status(401).json({
+      success: false,
+      message: 'Not authorized, token failed or expired',
     });
   }
 };

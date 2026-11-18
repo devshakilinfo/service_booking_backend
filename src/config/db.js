@@ -145,6 +145,8 @@ const initializeDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_bookings_service_slot ON bookings(service_id, date, time_slot, status);
     `);
 
+    await ensureBookingSlotIndex();
+
     console.log('PostgreSQL Database & Schema Tables Initialized Successfully');
   } catch (err) {
     console.error('PostgreSQL Connection/Initialization Note:', err.message);
@@ -152,8 +154,23 @@ const initializeDatabase = async () => {
   }
 };
 
+const ensureBookingSlotIndex = async () => {
+  try {
+    await query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS uniq_active_booking_slot
+      ON bookings(service_id, date, time_slot)
+      WHERE status IN ('Pending', 'Confirmed');
+    `);
+    return true;
+  } catch (err) {
+    console.warn('Could not create unique booking slot index (duplicate active bookings exist):', err.message);
+    return false;
+  }
+};
+
 module.exports = {
   pool,
   query,
   initializeDatabase,
+  ensureBookingSlotIndex,
 };

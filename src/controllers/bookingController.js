@@ -1,4 +1,8 @@
 const db = require('../config/db');
+const { validateBookingDate } = require('../utils/validation');
+
+const UNIQUE_VIOLATION = '23505';
+const SLOT_TAKEN_MESSAGE = 'This time slot is already booked. Please choose another time slot.';
 
 const createBooking = async (req, res, next) => {
   try {
@@ -11,7 +15,25 @@ const createBooking = async (req, res, next) => {
       });
     }
 
-    const serviceRes = await db.query('SELECT * FROM services WHERE id = $1', [serviceId]);
+    const dateError = validateBookingDate(date);
+    if (dateError) {
+      return res.status(400).json({
+        success: false,
+        message: dateError,
+      });
+    }
+
+    if (notes !== undefined && (typeof notes !== 'string' || notes.length > 1000)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Notes must be text of at most 1000 characters',
+      });
+    }
+
+    const serviceRes = await db.query(
+      'SELECT * FROM services WHERE id = $1 AND is_active = TRUE',
+      [serviceId]
+    );
     if (serviceRes.rows.length === 0) {
       return res.status(404).json({
         success: false,
@@ -37,16 +59,27 @@ const createBooking = async (req, res, next) => {
     if (conflictRes.rows.length > 0) {
       return res.status(409).json({
         success: false,
-        message: 'This time slot is already booked. Please choose another time slot.',
+        message: SLOT_TAKEN_MESSAGE,
       });
     }
 
-    const insertRes = await db.query(
-      `INSERT INTO bookings (user_id, service_id, date, time_slot, status, total_price, notes)
-       VALUES ($1, $2, $3, $4, 'Pending', $5, $6)
-       RETURNING *`,
-      [req.user.id, serviceId, date, timeSlot, service.price, notes || '']
-    );
+    let insertRes;
+    try {
+      insertRes = await db.query(
+        `INSERT INTO bookings (user_id, service_id, date, time_slot, status, total_price, notes)
+         VALUES ($1, $2, $3, $4, 'Pending', $5, $6)
+         RETURNING *`,
+        [req.user.id, serviceId, date, timeSlot, service.price, notes || '']
+      );
+    } catch (insertError) {
+      if (insertError.code === UNIQUE_VIOLATION) {
+        return res.status(409).json({
+          success: false,
+          message: SLOT_TAKEN_MESSAGE,
+        });
+      }
+      throw insertError;
+    }
 
     const booking = insertRes.rows[0];
 
@@ -152,12 +185,20 @@ const getBookingById = async (req, res, next) => {
   try {
     const { id } = req.params;
 
+    if (!/^\d+$/.test(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid booking id',
+      });
+    }
+
     const sql = `
       SELECT 
-        b.id, b.user_id, b.date, b.time_slot, b.status, b.total_price, b.notes, b.created_at,
+        b.id, b.user_id, b.date, b.time_slot, b.status, b.total_price, b.notes,
+        b.cancellation_reason, b.created_at,
         s.id AS service_id, s.name AS service_name, s.category AS service_category,
         s.price AS service_price, s.duration AS service_duration, s.image AS service_image,
-        s.rating AS service_rating,
+        s.rating AS service_rating, s.description AS service_description,
         u.name AS user_name, u.email AS user_email, u.phone AS user_phone, u.avatar AS user_avatar
       FROM bookings b
       JOIN services s ON b.service_id = s.id
@@ -193,11 +234,13 @@ const getBookingById = async (req, res, next) => {
         status: row.status,
         totalPrice: parseFloat(row.total_price),
         notes: row.notes,
+        cancellationReason: row.cancellation_reason || '',
         createdAt: row.created_at,
         service: {
           _id: row.service_id.toString(),
           id: row.service_id.toString(),
           name: row.service_name,
+          description: row.service_description,
           category: row.service_category,
           price: parseFloat(row.service_price),
           duration: row.service_duration,
@@ -221,6 +264,13 @@ const cancelBooking = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { cancellationReason } = req.body;
+
+    if (!/^\d+$/.test(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid booking id',
+      });
+    }
 
     const findRes = await db.query('SELECT * FROM bookings WHERE id = $1', [id]);
     if (findRes.rows.length === 0) {
