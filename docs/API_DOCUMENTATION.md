@@ -258,3 +258,54 @@ Authorization: Bearer <your_jwt_token>
 ### 🤖 E. AI Service Assistant API
 
 * `POST /api/ai/ask` - Ask question about services & get grounded recommendations with service cards.
+
+---
+
+### 🛡️ F. Admin API (Admin Only)
+
+#### 1. Platform Metrics & Analytics
+* **Route:** `GET /api/admin/metrics`
+* **Access:** Private (Admin Role)
+* **Success Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "metrics": {
+      "totalRevenue": 2450.00,
+      "activeBookings": 8,
+      "totalServices": 14,
+      "verifiedSpecialists": 28,
+      "growthRate": "+18.4%"
+    },
+    "bookingStatusBreakdown": {
+      "Pending": 2,
+      "Confirmed": 5,
+      "Completed": 10,
+      "Cancelled": 1
+    }
+  }
+}
+```
+
+#### 2. Update Platform Settings
+* **Route:** `PUT /api/admin/settings`
+* **Access:** Private (Admin Role)
+* **Request Body:**
+```json
+{
+  "platformCommissionRate": 10.0,
+  "instantBookingAutoApprove": true,
+  "maintenanceMode": false,
+  "emergencySupportContact": "+880 1900-654321"
+}
+```
+
+#### 3. Manage All Bookings
+* **Route:** `GET /api/bookings/admin/all` - List all customer bookings with status filter
+* **Route:** `PUT /api/bookings/:id/status` - Update booking status (`Confirmed`, `Completed`, `Cancelled`)
+
+#### 4. Manage Catalog Services
+* **Route:** `POST /api/services` - Create new service in database catalog
+* **Route:** `PUT /api/services/:id` - Edit service details and pricing
+* **Route:** `DELETE /api/services/:id` - Deactivate / archive service

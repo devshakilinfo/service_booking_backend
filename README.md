@@ -25,6 +25,14 @@ Production-ready REST API backend for **ServiceHub - Service Booking & Managemen
 5. **🤖 AI Assistant API:**
    - Secure server-side AI integration (Google Gemini 1.5 Flash + Intelligent Grounded Assistant Engine).
    - Generates tailored recommendations and returns structured service cards.
+6. **🛡️ Admin Suite API:**
+   - Dynamic platform metrics & revenue analytics (`GET /api/admin/metrics`).
+   - Operational platform settings (`PUT /api/admin/settings`).
+   - Customer booking lifecycle control (`GET /api/bookings/admin/all`, `PUT /api/bookings/:id/status`).
+   - Database-backed service catalog management (`POST`, `PUT`, `DELETE /api/services`).
+
+> 🌐 **Live Cloud Backend URL:** `https://service-booking-backend-es6d.onrender.com/api`  
+> 🩺 **Health Check:** `https://service-booking-backend-es6d.onrender.com/api/health`
 
 ---
 
