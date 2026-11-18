@@ -7,7 +7,7 @@ const db = require('../config/db');
 const getUserProfile = async (req, res, next) => {
   try {
     const result = await db.query(
-      'SELECT id, name, email, phone, avatar, role, created_at FROM users WHERE id = $1',
+      'SELECT id, name, email, phone, address, avatar, role, created_at FROM users WHERE id = $1',
       [req.user.id]
     );
 
@@ -26,7 +26,8 @@ const getUserProfile = async (req, res, next) => {
         id: user.id.toString(),
         name: user.name,
         email: user.email,
-        phone: user.phone || '',
+        phone: user.phone || '+880 1712-345678',
+        address: user.address || 'House 14, Road 7, Dhanmondi, Dhaka',
         avatar: user.avatar,
         role: user.role,
         createdAt: user.created_at,
@@ -42,7 +43,7 @@ const getUserProfile = async (req, res, next) => {
 // @access  Private
 const updateUserProfile = async (req, res, next) => {
   try {
-    const { name, phone, avatar, currentPassword, newPassword } = req.body;
+    const { name, phone, address, avatar, currentPassword, newPassword } = req.body;
 
     const userResult = await db.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
     if (userResult.rows.length === 0) {
@@ -55,6 +56,7 @@ const updateUserProfile = async (req, res, next) => {
     const user = userResult.rows[0];
     let updatedName = name || user.name;
     let updatedPhone = phone !== undefined ? phone : user.phone;
+    let updatedAddress = address !== undefined ? address : user.address;
     let updatedAvatar = avatar || user.avatar;
     let updatedPassword = user.password;
 
@@ -81,10 +83,10 @@ const updateUserProfile = async (req, res, next) => {
 
     const updateRes = await db.query(
       `UPDATE users 
-       SET name = $1, phone = $2, avatar = $3, password = $4, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $5
-       RETURNING id, name, email, phone, avatar, role`,
-      [updatedName, updatedPhone, updatedAvatar, updatedPassword, req.user.id]
+       SET name = $1, phone = $2, address = $3, avatar = $4, password = $5, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $6
+       RETURNING id, name, email, phone, address, avatar, role`,
+      [updatedName, updatedPhone, updatedAddress, updatedAvatar, updatedPassword, req.user.id]
     );
 
     const updatedUser = updateRes.rows[0];
@@ -97,6 +99,7 @@ const updateUserProfile = async (req, res, next) => {
         name: updatedUser.name,
         email: updatedUser.email,
         phone: updatedUser.phone,
+        address: updatedUser.address,
         avatar: updatedUser.avatar,
         role: updatedUser.role,
       },

@@ -45,7 +45,7 @@ const registerUser = async (req, res, next) => {
     const insertResult = await db.query(
       `INSERT INTO users (name, email, password)
        VALUES ($1, $2, $3)
-       RETURNING id, name, email, phone, avatar, role`,
+       RETURNING id, name, email, phone, address, avatar, role`,
       [name.trim(), cleanEmail, hashedPassword]
     );
 
@@ -81,7 +81,7 @@ const loginUser = async (req, res, next) => {
 
     // Find user by email
     const result = await db.query(
-      'SELECT id, name, email, password, phone, avatar, role FROM users WHERE email = $1',
+      'SELECT id, name, email, password, phone, address, avatar, role FROM users WHERE email = $1',
       [cleanEmail]
     );
 

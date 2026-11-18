@@ -118,11 +118,9 @@ const getMyBookings = async (req, res, next) => {
     }
 
     if (type === 'upcoming') {
-      params.push(todayStr);
-      sql += ` AND b.date >= $${params.length} AND b.status != 'Cancelled'`;
+      sql += ` AND b.status IN ('Pending', 'Confirmed')`;
     } else if (type === 'past') {
-      params.push(todayStr);
-      sql += ` AND (b.date < $${params.length} OR b.status IN ('Completed', 'Cancelled'))`;
+      sql += ` AND b.status IN ('Completed', 'Cancelled')`;
     }
 
     sql += ' ORDER BY b.date DESC, b.created_at DESC';

@@ -25,12 +25,20 @@ const initializeDatabase = async () => {
         name VARCHAR(255) NOT NULL,
         email VARCHAR(255) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
-        phone VARCHAR(50) DEFAULT '',
-        avatar TEXT DEFAULT 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+        phone VARCHAR(50) DEFAULT '+880 1712-345678',
+        address TEXT DEFAULT 'House 14, Road 7, Dhanmondi, Dhaka',
+        avatar TEXT DEFAULT 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
         role VARCHAR(50) DEFAULT 'user',
+        is_verified BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+    `);
+
+    // Ensure address & is_verified columns exist on older schemas
+    await query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS address TEXT DEFAULT 'House 14, Road 7, Dhanmondi, Dhaka';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT TRUE;
     `);
 
     // 2. Categories Table
@@ -60,7 +68,7 @@ const initializeDatabase = async () => {
         is_featured BOOLEAN DEFAULT FALSE,
         is_popular BOOLEAN DEFAULT FALSE,
         highlights TEXT[] DEFAULT ARRAY['Experienced Staff', 'Quality Guaranteed', '100% Satisfaction'],
-        available_slots TEXT[] DEFAULT ARRAY['09:00 AM', '10:00 AM', '11:00 AM', '02:00 PM', '03:00 PM', '04:00 PM'],
+        available_slots TEXT[] DEFAULT ARRAY['09:00 AM', '10:00 AM', '11:00 AM', '11:30 AM', '02:00 PM', '03:00 PM', '04:00 PM', '04:30 PM', '08:00 PM'],
         is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -79,6 +87,56 @@ const initializeDatabase = async () => {
         notes TEXT DEFAULT '',
         cancellation_reason TEXT DEFAULT '',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // 5. Reviews Table
+    await query(`
+      CREATE TABLE IF NOT EXISTS reviews (
+        id SERIAL PRIMARY KEY,
+        user_id INT REFERENCES users(id) ON DELETE CASCADE,
+        service_id INT REFERENCES services(id) ON DELETE CASCADE,
+        rating NUMERIC(2, 1) DEFAULT 5.0,
+        comment TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // 6. Saved Addresses Table
+    await query(`
+      CREATE TABLE IF NOT EXISTS saved_addresses (
+        id SERIAL PRIMARY KEY,
+        user_id INT REFERENCES users(id) ON DELETE CASCADE,
+        label VARCHAR(100) NOT NULL,
+        address TEXT NOT NULL,
+        is_default BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // 7. AI Chat History Table
+    await query(`
+      CREATE TABLE IF NOT EXISTS ai_chat_messages (
+        id SERIAL PRIMARY KEY,
+        user_id INT REFERENCES users(id) ON DELETE CASCADE,
+        sender VARCHAR(20) NOT NULL,
+        message TEXT NOT NULL,
+        recommended_service_id INT REFERENCES services(id) ON DELETE SET NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // 8. Platform Settings Table (Admin Config)
+    await query(`
+      CREATE TABLE IF NOT EXISTS platform_settings (
+        id SERIAL PRIMARY KEY,
+        platform_name VARCHAR(100) DEFAULT 'ServiceHub',
+        commission_rate VARCHAR(20) DEFAULT '15%',
+        support_email VARCHAR(255) DEFAULT 'support@servicehub.app',
+        auto_confirm_bookings BOOLEAN DEFAULT TRUE,
+        slot_buffer_time VARCHAR(50) DEFAULT '30 mins',
+        free_cancellation_window VARCHAR(50) DEFAULT '2 hours before',
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
