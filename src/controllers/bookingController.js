@@ -123,12 +123,14 @@ const getMyBookings = async (req, res, next) => {
 
     let sql = `
       SELECT 
-        b.id, b.date, b.time_slot, b.status, b.total_price, b.notes, b.created_at,
+        b.id, b.date, b.time_slot, b.status, b.total_price, b.notes, b.cancellation_reason, b.created_at,
         s.id AS service_id, s.name AS service_name, s.category AS service_category,
         s.price AS service_price, s.duration AS service_duration, s.image AS service_image,
-        s.rating AS service_rating, s.highlights AS service_highlights
+        s.rating AS service_rating, s.highlights AS service_highlights,
+        u.id AS user_id, u.name AS user_name, u.email AS user_email, u.phone AS user_phone, u.address AS user_address, u.avatar AS user_avatar
       FROM bookings b
       JOIN services s ON b.service_id = s.id
+      JOIN users u ON b.user_id = u.id
       WHERE b.user_id = $1
     `;
 
@@ -157,6 +159,7 @@ const getMyBookings = async (req, res, next) => {
       status: row.status,
       totalPrice: parseFloat(row.total_price),
       notes: row.notes,
+      cancellationReason: row.cancellation_reason || '',
       createdAt: row.created_at,
       service: {
         _id: row.service_id.toString(),
@@ -168,6 +171,14 @@ const getMyBookings = async (req, res, next) => {
         image: row.service_image,
         rating: parseFloat(row.service_rating),
         highlights: row.service_highlights || [],
+      },
+      user: {
+        id: row.user_id.toString(),
+        name: row.user_name,
+        email: row.user_email,
+        phone: row.user_phone,
+        address: row.user_address,
+        avatar: row.user_avatar,
       },
     }));
 
@@ -321,9 +332,119 @@ const cancelBooking = async (req, res, next) => {
   }
 };
 
+const getAllBookingsAdmin = async (req, res, next) => {
+  try {
+    const { status } = req.query;
+
+    let sql = `
+      SELECT 
+        b.id, b.date, b.time_slot, b.status, b.total_price, b.notes, b.cancellation_reason, b.created_at,
+        s.id AS service_id, s.name AS service_name, s.category AS service_category,
+        s.price AS service_price, s.duration AS service_duration, s.image AS service_image,
+        s.rating AS service_rating,
+        u.id AS user_id, u.name AS user_name, u.email AS user_email, u.phone AS user_phone, u.address AS user_address, u.avatar AS user_avatar
+      FROM bookings b
+      JOIN services s ON b.service_id = s.id
+      JOIN users u ON b.user_id = u.id
+    `;
+
+    const params = [];
+    if (status && status !== 'All') {
+      sql += ' WHERE b.status = $1';
+      params.push(status);
+    }
+
+    sql += ' ORDER BY b.created_at DESC, b.date DESC';
+
+    const result = await db.query(sql, params);
+
+    const bookings = result.rows.map((row) => ({
+      _id: row.id.toString(),
+      id: row.id.toString(),
+      date: row.date,
+      timeSlot: row.time_slot,
+      status: row.status,
+      totalPrice: parseFloat(row.total_price),
+      notes: row.notes,
+      cancellationReason: row.cancellation_reason || '',
+      createdAt: row.created_at,
+      service: {
+        _id: row.service_id.toString(),
+        id: row.service_id.toString(),
+        name: row.service_name,
+        category: row.service_category,
+        price: parseFloat(row.service_price),
+        duration: row.service_duration,
+        image: row.service_image,
+        rating: parseFloat(row.service_rating),
+      },
+      user: {
+        id: row.user_id.toString(),
+        name: row.user_name,
+        email: row.user_email,
+        phone: row.user_phone,
+        address: row.user_address,
+        avatar: row.user_avatar,
+      },
+    }));
+
+    res.json({
+      success: true,
+      count: bookings.length,
+      data: bookings,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateBookingStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!/^\d+$/.test(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid booking id',
+      });
+    }
+
+    const validStatuses = ['Pending', 'Confirmed', 'Completed', 'Cancelled'];
+    if (!status || !validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Status must be one of: ${validStatuses.join(', ')}`,
+      });
+    }
+
+    const updateRes = await db.query(
+      'UPDATE bookings SET status = $1 WHERE id = $2 RETURNING *',
+      [status, id]
+    );
+
+    if (updateRes.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found',
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Booking status updated to ${status}`,
+      data: updateRes.rows[0],
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createBooking,
   getMyBookings,
   getBookingById,
   cancelBooking,
+  getAllBookingsAdmin,
+  updateBookingStatus,
 };
