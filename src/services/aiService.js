@@ -18,7 +18,6 @@ class AIService {
 
     const userText = (userMessage || '').toLowerCase().trim();
 
-    // 1. Try Gemini API if key is set
     if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your_gemini_api_key_here') {
       try {
         const geminiRes = await this._callGeminiAPI(userMessage, services);
@@ -28,7 +27,6 @@ class AIService {
       }
     }
 
-    // 2. Intelligent Grounded Knowledge Engine
     return this._generateLocalResponse(userText, services);
   }
 

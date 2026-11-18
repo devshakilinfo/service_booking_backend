@@ -12,9 +12,6 @@ const generateToken = (id) => {
   );
 };
 
-// @desc    Register a new user
-// @route   POST /api/auth/register
-// @access  Public
 const registerUser = async (req, res, next) => {
   try {
     const { name, email, password } = req.body;
@@ -28,7 +25,6 @@ const registerUser = async (req, res, next) => {
 
     const cleanEmail = email.toLowerCase().trim();
 
-    // Check if user already exists
     const existing = await db.query('SELECT id FROM users WHERE email = $1', [cleanEmail]);
     if (existing.rows.length > 0) {
       return res.status(400).json({
@@ -37,11 +33,9 @@ const registerUser = async (req, res, next) => {
       });
     }
 
-    // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Insert user into PostgreSQL
     const insertResult = await db.query(
       `INSERT INTO users (name, email, password)
        VALUES ($1, $2, $3)
@@ -63,9 +57,6 @@ const registerUser = async (req, res, next) => {
   }
 };
 
-// @desc    Authenticate user & get token
-// @route   POST /api/auth/login
-// @access  Public
 const loginUser = async (req, res, next) => {
   try {
     const { email, password } = req.body;
@@ -79,7 +70,6 @@ const loginUser = async (req, res, next) => {
 
     const cleanEmail = email.toLowerCase().trim();
 
-    // Find user by email
     const result = await db.query(
       'SELECT id, name, email, password, phone, address, avatar, role FROM users WHERE email = $1',
       [cleanEmail]
@@ -94,7 +84,6 @@ const loginUser = async (req, res, next) => {
 
     const user = result.rows[0];
 
-    // Check password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({
@@ -105,7 +94,6 @@ const loginUser = async (req, res, next) => {
 
     const token = generateToken(user.id);
 
-    // Exclude password in response
     delete user.password;
 
     res.json({

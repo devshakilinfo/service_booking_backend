@@ -1,8 +1,5 @@
 const db = require('../config/db');
 
-// @desc    Create a new appointment booking
-// @route   POST /api/bookings
-// @access  Private
 const createBooking = async (req, res, next) => {
   try {
     const { serviceId, date, timeSlot, notes } = req.body;
@@ -14,7 +11,6 @@ const createBooking = async (req, res, next) => {
       });
     }
 
-    // 1. Verify service exists
     const serviceRes = await db.query('SELECT * FROM services WHERE id = $1', [serviceId]);
     if (serviceRes.rows.length === 0) {
       return res.status(404).json({
@@ -25,7 +21,6 @@ const createBooking = async (req, res, next) => {
 
     const service = serviceRes.rows[0];
 
-    // 2. Validate time slot
     if (!service.available_slots.includes(timeSlot)) {
       return res.status(400).json({
         success: false,
@@ -33,7 +28,6 @@ const createBooking = async (req, res, next) => {
       });
     }
 
-    // 3. Conflict Prevention: check if slot is already booked on this date
     const conflictRes = await db.query(
       `SELECT id FROM bookings 
        WHERE service_id = $1 AND date = $2 AND time_slot = $3 AND status IN ('Pending', 'Confirmed')`,
@@ -47,7 +41,6 @@ const createBooking = async (req, res, next) => {
       });
     }
 
-    // 4. Insert booking
     const insertRes = await db.query(
       `INSERT INTO bookings (user_id, service_id, date, time_slot, status, total_price, notes)
        VALUES ($1, $2, $3, $4, 'Pending', $5, $6)
@@ -57,7 +50,6 @@ const createBooking = async (req, res, next) => {
 
     const booking = insertRes.rows[0];
 
-    // Format response with service details
     res.status(201).json({
       success: true,
       message: 'Appointment booked successfully',
@@ -91,9 +83,6 @@ const createBooking = async (req, res, next) => {
   }
 };
 
-// @desc    Get appointments belonging to the authenticated user
-// @route   GET /api/bookings/my
-// @access  Private
 const getMyBookings = async (req, res, next) => {
   try {
     const { type, status } = req.query;
@@ -159,9 +148,6 @@ const getMyBookings = async (req, res, next) => {
   }
 };
 
-// @desc    Get individual booking details
-// @route   GET /api/bookings/:id
-// @access  Private
 const getBookingById = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -190,7 +176,6 @@ const getBookingById = async (req, res, next) => {
 
     const row = result.rows[0];
 
-    // Check authorization
     if (row.user_id !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
@@ -232,9 +217,6 @@ const getBookingById = async (req, res, next) => {
   }
 };
 
-// @desc    Cancel a pending or confirmed appointment
-// @route   PUT /api/bookings/:id/cancel
-// @access  Private
 const cancelBooking = async (req, res, next) => {
   try {
     const { id } = req.params;

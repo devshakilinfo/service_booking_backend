@@ -1,8 +1,5 @@
 const db = require('../config/db');
 
-// @desc    Get all services with optional search & filter
-// @route   GET /api/services
-// @access  Public
 const getServices = async (req, res, next) => {
   try {
     const { category, search, featured, popular } = req.query;
@@ -35,7 +32,6 @@ const getServices = async (req, res, next) => {
 
     const result = await db.query(sql, params);
 
-    // Format fields to match Flutter camelCase expectations
     const services = result.rows.map((row) => ({
       _id: row.id.toString(),
       id: row.id.toString(),
@@ -64,9 +60,6 @@ const getServices = async (req, res, next) => {
   }
 };
 
-// @desc    Get single service details by ID
-// @route   GET /api/services/:id
-// @access  Public
 const getServiceById = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -107,9 +100,6 @@ const getServiceById = async (req, res, next) => {
   }
 };
 
-// @desc    Get available time slots for a service on a specific date
-// @route   GET /api/services/:id/availability?date=YYYY-MM-DD
-// @access  Public
 const getServiceAvailability = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -132,7 +122,6 @@ const getServiceAvailability = async (req, res, next) => {
 
     const allSlots = serviceResult.rows[0].available_slots || [];
 
-    // Query active bookings for this service on this date
     const bookedResult = await db.query(
       `SELECT time_slot FROM bookings 
        WHERE service_id = $1 AND date = $2 AND status IN ('Pending', 'Confirmed')`,
@@ -158,9 +147,6 @@ const getServiceAvailability = async (req, res, next) => {
   }
 };
 
-// @desc    Get all categories
-// @route   GET /api/services/categories
-// @access  Public
 const getCategories = async (req, res, next) => {
   try {
     const result = await db.query(

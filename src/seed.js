@@ -270,7 +270,6 @@ const seedDatabase = async () => {
     console.log('Connecting to PostgreSQL and initializing schema...');
     await initializeDatabase();
 
-    // 1. Clear existing seed data cleanly
     await query('DELETE FROM ai_chat_messages');
     await query('DELETE FROM saved_addresses');
     await query('DELETE FROM reviews');
@@ -291,7 +290,6 @@ const seedDatabase = async () => {
     );
     console.log('Cleared old seed records.');
 
-    // 2. Insert Categories
     for (const c of sampleCategories) {
       await query(
         `INSERT INTO categories (name, icon, description)
@@ -302,7 +300,6 @@ const seedDatabase = async () => {
     }
     console.log(`Inserted ${sampleCategories.length} categories.`);
 
-    // 3. Insert Services
     const serviceIds = [];
     for (const s of sampleServices) {
       const res = await query(
@@ -328,11 +325,9 @@ const seedDatabase = async () => {
     }
     console.log(`Inserted ${sampleServices.length} services across all 6 categories.`);
 
-    // 4. Create Users (Primary Customer accounts + Admin + Mock Customers)
     const userPassword = await bcrypt.hash('password123', 10);
     const adminPassword = await bcrypt.hash('admin123', 10);
 
-    // Primary Customer 1: shakil@example.com
     const shakilRes1 = await query(
       `INSERT INTO users (name, email, password, phone, address, avatar, role, is_verified)
        VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)
@@ -349,7 +344,6 @@ const seedDatabase = async () => {
     );
     const shakilId1 = shakilRes1.rows[0].id;
 
-    // Primary Customer 2: shakil.dev@servicehub.app
     const shakilRes2 = await query(
       `INSERT INTO users (name, email, password, phone, address, avatar, role, is_verified)
        VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)
@@ -366,7 +360,6 @@ const seedDatabase = async () => {
     );
     const shakilId2 = shakilRes2.rows[0].id;
 
-    // Admin User: admin@servicehub.com
     const adminRes = await query(
       `INSERT INTO users (name, email, password, phone, address, avatar, role, is_verified)
        VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)
@@ -383,7 +376,6 @@ const seedDatabase = async () => {
     );
     const adminId = adminRes.rows[0].id;
 
-    // Extra Customers for Admin Bookings & Reviews
     const extraUsersData = [
       {
         name: 'Tanvir Hasan',
@@ -417,11 +409,10 @@ const seedDatabase = async () => {
     }
     console.log('Inserted 6 users (Shakil primary & dev accounts, Admin, and 3 customers).');
 
-    // 5. Insert Bookings (All 4 statuses: Confirmed, Pending, Completed, Cancelled)
     const shakilBookings = [
-      // Confirmed (Upcoming)
+      
       {
-        serviceIndex: 0, // Home Cleaning ($25)
+        serviceIndex: 0, 
         date: '2026-11-19',
         timeSlot: '11:30 AM',
         status: 'Confirmed',
@@ -429,7 +420,7 @@ const seedDatabase = async () => {
         notes: 'Please bring eco-friendly kitchen & bathroom supplies',
       },
       {
-        serviceIndex: 4, // Home Physiotherapy ($50)
+        serviceIndex: 4, 
         date: '2026-11-22',
         timeSlot: '10:00 AM',
         status: 'Confirmed',
@@ -437,16 +428,16 @@ const seedDatabase = async () => {
         notes: 'Posture and shoulder mobility therapy session',
       },
       {
-        serviceIndex: 12, // Smart Home & CCTV Setup ($55)
+        serviceIndex: 12, 
         date: '2026-11-25',
         timeSlot: '04:30 PM',
         status: 'Confirmed',
         price: 55.0,
         notes: 'Front door smart lock and 2 balcony camera installations',
       },
-      // Pending (Upcoming)
+      
       {
-        serviceIndex: 1, // AC Repair & Diagnostics ($40)
+        serviceIndex: 1, 
         date: '2026-11-21',
         timeSlot: '02:00 PM',
         status: 'Pending',
@@ -454,16 +445,16 @@ const seedDatabase = async () => {
         notes: 'Master bedroom AC blowing warm air and making fan noise',
       },
       {
-        serviceIndex: 5, // Deep Sofa & Carpet Cleaning ($35)
+        serviceIndex: 5, 
         date: '2026-11-26',
         timeSlot: '09:00 AM',
         status: 'Pending',
         price: 35.0,
         notes: '5-seater fabric L-shape sofa steam cleaning',
       },
-      // Completed (Past)
+      
       {
-        serviceIndex: 2, // Plumbing Service ($30)
+        serviceIndex: 2, 
         date: '2026-11-14',
         timeSlot: '11:00 AM',
         status: 'Completed',
@@ -471,7 +462,7 @@ const seedDatabase = async () => {
         notes: 'Kitchen sink mixer faucet replacement',
       },
       {
-        serviceIndex: 3, // Beauty Parlour ($35)
+        serviceIndex: 3, 
         date: '2026-11-10',
         timeSlot: '04:00 PM',
         status: 'Completed',
@@ -479,7 +470,7 @@ const seedDatabase = async () => {
         notes: 'Herbal facial and hair spa package',
       },
       {
-        serviceIndex: 6, // Electrical Maintenance ($35)
+        serviceIndex: 6, 
         date: '2026-11-05',
         timeSlot: '03:00 PM',
         status: 'Completed',
@@ -487,16 +478,16 @@ const seedDatabase = async () => {
         notes: 'Living room dimmer switchboard upgrade',
       },
       {
-        serviceIndex: 8, // Kitchen & Chimney Deep Clean ($30)
+        serviceIndex: 8, 
         date: '2026-11-02',
         timeSlot: '10:00 AM',
         status: 'Completed',
         price: 30.0,
         notes: 'Full kitchen hood degreasing and tile scrub',
       },
-      // Cancelled
+      
       {
-        serviceIndex: 7, // Home Painting ($80)
+        serviceIndex: 7, 
         date: '2026-11-08',
         timeSlot: '09:00 AM',
         status: 'Cancelled',
@@ -506,7 +497,6 @@ const seedDatabase = async () => {
       },
     ];
 
-    // Seed bookings for both Shakil accounts + Admin so any logged-in account sees rich bookings
     for (const targetUserId of [shakilId1, shakilId2, adminId]) {
       for (const b of shakilBookings) {
         await query(
@@ -527,7 +517,6 @@ const seedDatabase = async () => {
     }
     console.log(`Inserted ${shakilBookings.length} mock bookings per primary user across all 4 tabs.`);
 
-    // 6. Insert Saved Addresses for Shakil
     const addresses = [
       { label: 'Home (Default)', address: 'House 14, Road 7, Dhanmondi, Dhaka', isDefault: true },
       { label: 'Office', address: 'Level 8, Tower 52, Gulshan-2, Dhaka', isDefault: false },
@@ -544,7 +533,6 @@ const seedDatabase = async () => {
     }
     console.log('Inserted saved addresses.');
 
-    // 7. Insert Customer Reviews for Services
     const sampleReviews = [
       {
         userId: shakilId1,
@@ -586,7 +574,6 @@ const seedDatabase = async () => {
     }
     console.log(`Inserted ${sampleReviews.length} verified service reviews.`);
 
-    // 8. Insert AI Chat Conversation History
     for (const targetUserId of [shakilId1, shakilId2]) {
       await query(
         `INSERT INTO ai_chat_messages (user_id, sender, message, recommended_service_id)
@@ -599,7 +586,6 @@ const seedDatabase = async () => {
     }
     console.log('Inserted AI Assistant chat history.');
 
-    // 9. Insert Admin Platform Settings
     await query(
       `INSERT INTO platform_settings (platform_name, commission_rate, support_email, auto_confirm_bookings, slot_buffer_time, free_cancellation_window)
        VALUES ('ServiceHub', '15%', 'support@servicehub.app', TRUE, '30 mins', '2 hours before')`

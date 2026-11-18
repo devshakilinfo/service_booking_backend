@@ -12,13 +12,11 @@ const pool = new Pool(
       }
 );
 
-// Helper function to execute SQL queries
 const query = (text, params) => pool.query(text, params);
 
-// Auto-initialize schema tables
 const initializeDatabase = async () => {
   try {
-    // 1. Users Table
+    
     await query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -35,13 +33,11 @@ const initializeDatabase = async () => {
       );
     `);
 
-    // Ensure address & is_verified columns exist on older schemas
     await query(`
       ALTER TABLE users ADD COLUMN IF NOT EXISTS address TEXT DEFAULT 'House 14, Road 7, Dhanmondi, Dhaka';
       ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT TRUE;
     `);
 
-    // 2. Categories Table
     await query(`
       CREATE TABLE IF NOT EXISTS categories (
         id SERIAL PRIMARY KEY,
@@ -53,7 +49,6 @@ const initializeDatabase = async () => {
       );
     `);
 
-    // 3. Services Table
     await query(`
       CREATE TABLE IF NOT EXISTS services (
         id SERIAL PRIMARY KEY,
@@ -74,7 +69,6 @@ const initializeDatabase = async () => {
       );
     `);
 
-    // 4. Bookings Table
     await query(`
       CREATE TABLE IF NOT EXISTS bookings (
         id SERIAL PRIMARY KEY,
@@ -90,7 +84,6 @@ const initializeDatabase = async () => {
       );
     `);
 
-    // 5. Reviews Table
     await query(`
       CREATE TABLE IF NOT EXISTS reviews (
         id SERIAL PRIMARY KEY,
@@ -102,7 +95,6 @@ const initializeDatabase = async () => {
       );
     `);
 
-    // 6. Saved Addresses Table
     await query(`
       CREATE TABLE IF NOT EXISTS saved_addresses (
         id SERIAL PRIMARY KEY,
@@ -114,7 +106,6 @@ const initializeDatabase = async () => {
       );
     `);
 
-    // 7. AI Chat History Table
     await query(`
       CREATE TABLE IF NOT EXISTS ai_chat_messages (
         id SERIAL PRIMARY KEY,
@@ -126,7 +117,6 @@ const initializeDatabase = async () => {
       );
     `);
 
-    // 8. Platform Settings Table (Admin Config)
     await query(`
       CREATE TABLE IF NOT EXISTS platform_settings (
         id SERIAL PRIMARY KEY,
@@ -140,7 +130,6 @@ const initializeDatabase = async () => {
       );
     `);
 
-    // Create Indexes
     await query(`
       CREATE INDEX IF NOT EXISTS idx_services_category ON services(category);
       CREATE INDEX IF NOT EXISTS idx_services_popular ON services(is_popular);

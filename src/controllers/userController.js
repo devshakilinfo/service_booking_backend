@@ -1,9 +1,6 @@
 const bcrypt = require('bcryptjs');
 const db = require('../config/db');
 
-// @desc    Get current authenticated user profile
-// @route   GET /api/users/profile
-// @access  Private
 const getUserProfile = async (req, res, next) => {
   try {
     const result = await db.query(
@@ -38,9 +35,6 @@ const getUserProfile = async (req, res, next) => {
   }
 };
 
-// @desc    Update user profile & password
-// @route   PUT /api/users/profile
-// @access  Private
 const updateUserProfile = async (req, res, next) => {
   try {
     const { name, phone, address, avatar, currentPassword, newPassword } = req.body;
@@ -60,7 +54,6 @@ const updateUserProfile = async (req, res, next) => {
     let updatedAvatar = avatar || user.avatar;
     let updatedPassword = user.password;
 
-    // Handle optional password change
     if (newPassword) {
       if (currentPassword) {
         const isMatch = await bcrypt.compare(currentPassword, user.password);
